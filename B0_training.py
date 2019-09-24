@@ -22,7 +22,7 @@ class StatusNode(Node):
     def __init__(self,singleValue,status=[],**kwargs):
         Node.__init__(self,**kwargs)
         self.singleValue=singleValue
-        self.status=status
+        self.status=status#[buyers,leavers,returners,rest_of_SKU]
 
 #%%
 class MCT(list):
@@ -63,6 +63,13 @@ class MCT(list):
                 return self.nodeList[childI]
         return None
 
+    def updateChecked(self,myNode:DecisionNode):
+        tmpTravelNode=myNode
+        tmpTravelNode.checked+=1
+        while tmpTravelNode is not None:
+            tmpTravelNode.checked+=1
+            tmpTravelNode=tmpTravelNode.parent
+
     def training(self,myX,myY,maxIter=5):
         '''
         myX:ValueB+ReturnB
@@ -73,8 +80,10 @@ class MCT(list):
         
         #start iteration
         for iter in range(maxIter):
+
             #-for every iteration
             print("第{}轮迭代开始".format(iter+1))
+
             newStatusList=[self.root]
             for layerI in range(self.maxLayer):
                 
@@ -92,18 +101,20 @@ class MCT(list):
                 if self.maxNum>0:
                     #--the SKU was sold out
                     if len(newStatusList)==0:
+                        print("the SKU was sold out in all the way")
                         break
                     #--whether to generalize the decision node
                     for statusNodeItem in newStatusList:
                         if len(statusNodeItem.childList)==0:
                             #-----if the status doesn't have decision child
                             for decisionItem in decisionList:
-                                #---update checked of the status node
-                                statusNodeItem.checked+=1
 
                                 #------set the decision node
                                 tmpDecisionNode=DecisionNode(decisionItem,parent=statusNodeItem)
-                                tmpDecisionNode.checked+=1
+
+                                #------update the checked on the path
+                                self.updateChecked(tmpDecisionNode)
+
                                 #------add the node to the node list
                                 self.nodeList.append(tmpDecisionNode)
 
@@ -115,10 +126,9 @@ class MCT(list):
 
                         else:
                             for decisionI in statusNodeItem.childList:
-                                #---update checked of the status node
-                                statusNodeItem.checked+=1
-                                #-----add the node to the newDecisionNodeList
-                                self.nodeList[decisionI].checked+=1
+                                #---update checked of the node
+                                tmpTravelNode=statusNodeItem
+                                self.updateChecked(tmpTravelNode)
                                 newDecisionList.append(self.nodeList[decisionI])
                     
                     #--set the newStatusList
@@ -128,6 +138,8 @@ class MCT(list):
                     #--status nodes
                     for decisionNodeItem in newDecisionList:
                         if decisionNodeItem.ucb==maxUCB:
+
+                            self.updateChecked(decisionNodeItem)
                             #---status in this situation
                             if decisionNodeItem.parent.status[3]-np.sum(newData[:7]>=decisionNodeItem.decision)>=0:
                                 #----if there is enough deposit
@@ -162,21 +174,18 @@ class MCT(list):
                                 #-----if the status already exists, change tmpNode into it
                                 tmpStatusNode=self.findChild(decisionNodeItem,tmpStatus)
                             
-                            #----update the node's value
-                            tmpStatusNode.value=decisionNodeItem.decision*tmpStatusNode.status[0]
-
                             #----update the parents' value
+                            self.updateChecked(tmpStatusNode)
                             tmpTravelNode=tmpStatusNode
-                            tmpStatusNode.checked+=1
-                            tmpValue=0
+                            tmpAggValue=0
                             while tmpTravelNode.parent is not None:
                                 if type(tmpTravelNode)==StatusNode:
-                                    tmpValue=tmpTravelNode.value+tmpValue
+                                    tmpTravelNode.value=(tmpTravelNode.value*tmpTravelNode.checked+decisionNodeItem.decision*tmpTravelNode.status[0]+tmpAggValue)/(tmpTravelNode.checked+1)
+                                    tmpAggValue=tmpTravelNode.value
                                 else:
-                                    tmpTravelNode.value=max(tmpTravelNode.value,tmpValue)
-                                    tmpValue=tmpTravelNode.value
+                                    tmpTravelNode.value=(tmpTravelNode.value*tmpTravelNode.checked+np.max([self.nodeList[childI].value*self.nodeList[childI].checked/tmpTravelNode.checked for childI in tmpTravelNode.childList]))/(tmpTravelNode.checked+1)
+                                    # print(self.nodeList[tmpTravelNode.childList[0]].checked/tmpTravelNode.checked)
                                 tmpTravelNode=tmpTravelNode.parent
-
                             #------add the node to newStatusList
                             if tmpStatusNode not in newStatusList and tmpStatusNode.status[3]>0:
                                 newStatusList.append(tmpStatusNode)
@@ -217,9 +226,12 @@ class MCT(list):
     def integrateTree(self,myNode):
         myDict={}
         if type(myNode)==DecisionNode:
-            myDict["name"]="D"
+            myDict["name"]="D,ucb:{:.2f},price:{},value:{:.2f},checked:{}".format(myNode.ucb,myNode.decision,myNode.value,myNode.checked)
         else:
-            myDict["name"]="S status:{} price:{}".format(myNode.status,myNode.singleValue)
+            if myNode.parent!=None:
+                myDict["name"]="S,status:{},value:{:.2f},weight:{:.2f}".format(myNode.status,myNode.value,myNode.parent.checked/myNode.checked)
+            else:
+                myDict["name"]="root"
         myDict["children"]=[]
         if len(myNode.childList)!=0:
             for childI in myNode.childList:
@@ -240,6 +252,5 @@ trainDf=trainDf.loc[trainDf["SKU"]==itemName,:]
 X=np.array(trainDf.loc[:,[keyItem for keyItem in trainDf.keys() if keyItem.startswith("ValueB") or keyItem.startswith("ReturnB")]])
 y=np.array(trainDf["price"])
 myMCT=MCT()
-myMCT.training(X,y,maxIter=5)
+myMCT.training(X,y,maxIter=2)
 myMCT.plotModel()
-#%%
