@@ -4,6 +4,7 @@ import tqdm
 import pandas as pd
 from copy import deepcopy
 from pyecharts.charts import Tree
+import pickle as pkl
 #%%
 class Node:
     def __init__(self,myValue=0,ucb=np.inf,childList=[],parent=None):
@@ -65,7 +66,6 @@ class MCT(list):
 
     def updateChecked(self,myNode:DecisionNode):
         tmpTravelNode=myNode
-        tmpTravelNode.checked+=1
         while tmpTravelNode is not None:
             tmpTravelNode.checked+=1
             tmpTravelNode=tmpTravelNode.parent
@@ -229,7 +229,7 @@ class MCT(list):
             myDict["name"]="D,ucb:{:.2f},price:{},value:{:.2f},checked:{}".format(myNode.ucb,myNode.decision,myNode.value,myNode.checked)
         else:
             if myNode.parent!=None:
-                myDict["name"]="S,status:{},value:{:.2f},weight:{:.2f}".format(myNode.status,myNode.value,myNode.parent.checked/myNode.checked)
+                myDict["name"]="S,status:{},value:{:.2f},weight:{:.2f}".format(myNode.status,myNode.value,myNode.checked/myNode.parent.checked)
             else:
                 myDict["name"]="root"
         myDict["children"]=[]
@@ -243,6 +243,10 @@ class MCT(list):
         self.echartTree=[self.integrateTree(self.root)]
         self.tree.add("", self.echartTree)
         self.tree.render()
+
+    def saveModel(self):
+        with open("model/myModel.pkl","wb+") as myModelFile:
+            pkl.dump(self,myModelFile)
 #%%
 itemName="A"
 C=2
@@ -254,3 +258,6 @@ y=np.array(trainDf["price"])
 myMCT=MCT()
 myMCT.training(X,y,maxIter=2)
 myMCT.plotModel()
+myMCT.saveModel()
+with open("model/myModel.pkl","rb") as myModelFile:
+    myModel=pkl.load(myModelFile)
