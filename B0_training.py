@@ -1,3 +1,8 @@
+#The code in this file is mainly about the process of building a Monte Carlo tree to cover all the possible outcomes of
+ #our algorithm. Yudong defined some functions, and they can be used efficiently during the "training" part, which is the
+ #most important function in this code file. During "training" process, the key variables are "newDecisionList" and 
+ #"newStatusList". The model keeps iteration for every week, and expand the tree with the way with the highest ucb.
+
 #%%
 import numpy as np
 import tqdm
@@ -15,11 +20,14 @@ class Node:
         self.parent=parent
 
 class DecisionNode(Node):
+    #decision is the price we set, i.e. a number in [99, 199, 299, 399, 499, 599, 699, 799, 899, 999]
     def __init__(self,decision,**kwargs):
         Node.__init__(self,**kwargs)
         self.decision=decision
 
 class StatusNode(Node):
+    #singleValue is the price we set at DecisionNode
+    #status includes four numbers, indicating the number of buyers, leavers, returners, rest of SKU
     def __init__(self,singleValue,status=[],**kwargs):
         Node.__init__(self,**kwargs)
         self.singleValue=singleValue
@@ -28,6 +36,7 @@ class StatusNode(Node):
 #%%
 class MCT(list):
     
+    #there are 12 weeks, 10 SKUs, and we set C to 2
     def __init__(self,maxLayer=12,maxNum=10,ensemble=False,C=2):
         self.maxLayer=maxLayer
         self.maxNum=maxNum
@@ -39,7 +48,8 @@ class MCT(list):
         self.meanProfit=0
         self.stdProfit=0
         self.C=C
-
+        
+    ###
     def checkChild(self,checkedNode,checkedStatus):
         if len(checkedNode.childList)==0:
             return False
@@ -51,7 +61,8 @@ class MCT(list):
             if self.nodeList[childI].status==checkedStatus:
                 return True
         return False
-
+    
+    #find the childnode whose status equals to the value we want
     def findChild(self,checkedNode,checkedStatus):
         if len(checkedNode.childList)==0:
             return None
@@ -64,6 +75,7 @@ class MCT(list):
                 return self.nodeList[childI]
         return None
 
+    #update the times we checked/passed/selected a node
     def updateChecked(self,myNode:DecisionNode):
         tmpTravelNode=myNode
         while tmpTravelNode is not None:
@@ -209,6 +221,7 @@ class MCT(list):
 
                 print("第{}周结束".format(layerI+1))
 
+    #calculate backwards the ucb of each node
     def BPIter(self,myNode):
         tmpNode=myNode
         while tmpNode.parent is not None:
@@ -223,6 +236,7 @@ class MCT(list):
 
             tmpNode=tmpNode.parent
 
+    ###
     def integrateTree(self,myNode):
         myDict={}
         if type(myNode)==DecisionNode:
