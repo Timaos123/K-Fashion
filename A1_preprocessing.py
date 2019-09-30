@@ -25,10 +25,6 @@ if __name__=="__main__":
     print("loading data ...")
     myDf=pd.read_csv("data/Simulated Data.csv",encoding="utf8")
 
-    print("inserting y ...")
-    decisionList=[99,199,299,399,499,599,699,799,899,999]
-    myDf["price"]=setPrice(myDf,decisionList)
-
     print("filling missing data ...")
     keyList=[keyItem for keyItem in myDf.keys() if keyItem.startswith("ValueB")]
     for keyItem in keyList:
@@ -39,7 +35,22 @@ if __name__=="__main__":
     for keyItem in keyList:
         myDf[keyItem]=myDf.apply(lambda x:fillNA(x[keyItem],x["mean"],x["std"]), axis=1)
 
+    print("restructuring data ...")
+    itemList=[]
+    for SKUItem in ["A","B","C"]:
+        itemDf=myDf.loc[myDf["SKU"]==SKUItem,:]
+        changedColumnDict=dict([(keyItem,keyItem+"_"+SKUItem) for keyItem in myDf.keys() if keyItem.startswith("ValueB") or keyItem.startswith("ReturnB")])
+        changedColumnDict["SKU"]="SKU_"+SKUItem
+        itemDf.rename(columns=changedColumnDict,inplace=True)
+        itemList.append(itemDf)
+    simulatedDf=pd.merge(itemList[0],itemList[1],on=["Season","Week"])
+    simulatedDf=pd.merge(simulatedDf,itemList[2],on=["Season","Week"])
+
+    print("inserting y ...")
+    decisionList=[99,199,299,399,499,599,699,799,899,999]
+    simulatedDf["price"]=setPrice(simulatedDf,decisionList)
+
     print("saving data ...")
-    myDf.to_csv("data/Simulated_Data1.csv",index=None)
+    simulatedDf.to_csv("data/Simulated_Data1.csv",index=None)
 
     print("finished !")
