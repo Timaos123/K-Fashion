@@ -114,7 +114,7 @@ class MCT():
         
         #start iteration
         for iter in tqdm.tqdm(range(maxIter)):
-
+            iter=iter%50
             #-for every iteration
             print("第{}轮迭代开始".format(iter+1))
             if np.sum(startNode.status[-3:])==0:
@@ -237,7 +237,7 @@ class MCT():
                                     and tmpStatusNode.status[7]==0\
                                     and tmpStatusNode.status[8]==0:
                                     #------update the ucb if find the tail node
-                                self.BPIter(tmpStatusNode,C=self.C)
+                                self.BPIter(tmpStatusNode,C=self.C/(10**layerI))
 
                     #only keep the status node with decision node with highest ucb
                     maxUcb=0
@@ -405,7 +405,7 @@ if __name__=="__main__":
     X=np.array(trainDf.loc[:,keyList])
     y=np.array(trainDf["price"])
     myMCT=MCT(C=C)
-    myMCT.training(X,y,maxIter=1)
+    myMCT.training(X,y,maxIter=60)
 
     print("saving model ...")
     myMCT.saveModel()
