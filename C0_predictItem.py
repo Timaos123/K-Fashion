@@ -5,7 +5,7 @@ from B0_training import *
 
 if __name__=="__main__":
 
-    with open("model/myMode"+time.strftime("%Y%m%d", time.localtime(time.time()))+".pkl","rb") as myModelFile:
+    with open("model/myModel"+time.strftime("%Y%m%d", time.localtime(time.time()))+".pkl","rb") as myModelFile:
         myModel=pkl.load(myModelFile)
 
     # myModel.plotModel()
